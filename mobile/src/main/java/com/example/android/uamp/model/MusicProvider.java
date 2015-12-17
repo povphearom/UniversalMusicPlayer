@@ -18,7 +18,9 @@ package com.example.android.uamp.model;
 
 import android.media.MediaMetadata;
 import android.os.AsyncTask;
+import android.util.Log;
 
+import com.example.android.uamp.ui.BaseActivity;
 import com.example.android.uamp.utils.LogHelper;
 
 import org.json.JSONArray;
@@ -28,6 +30,7 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
@@ -46,8 +49,8 @@ public class MusicProvider {
 
     private static final String TAG = LogHelper.makeLogTag(MusicProvider.class);
     private String consumerKey = "2f5eb10b5123fb1e9527bea35f56137f";
-    private static final String CATALOG_URL =
-            "https://api.soundcloud.com/search/sounds.json?consumer_key=2f5eb10b5123fb1e9527bea35f56137f&q=top";
+//    private static final String CATALOG_URL =
+//            "https://api.soundcloud.com/search/sounds.json?consumer_key=2f5eb10b5123fb1e9527bea35f56137f&q=top";
 
 //    String urlVi = soundCloudList.getJSONObject(position).getString("stream_url") + "?consumer_key="
 //            + consumerKey;
@@ -60,13 +63,14 @@ public class MusicProvider {
 
     public static final String CUSTOM_METADATA_TRACK_SOURCE = "__SOURCE__";
 
-    private static final String JSON_MUSIC = "collection";
+    private static final String JSON_MUSIC = "music";
     private static final String JSON_TITLE = "title";
-    private static final String JSON_GENRE = "genre";
-    private static String JSON_SOURCE = "stream_url";
-    private static final String JSON_IMAGE = "artwork_url";
-    private static final String JSON_TOTAL_TRACK_COUNT = "playback_count";
-    private static final String JSON_DURATION = "duration";
+    private static final String JSON_ARTIST = "artist";
+    private static final String JSON_GENRE = "production";
+    private static final String JSON_SOURCE = "mp3";
+    private static final String JSON_IMAGE = "cover";
+//    private static final String JSON_TOTAL_TRACK_COUNT = "playback_count";
+//    private static final String JSON_DURATION = "duration";
 
     // Categorized caches for music track data:
     private ConcurrentMap<String, List<MediaMetadata>> mMusicListByGenre;
@@ -244,15 +248,16 @@ public class MusicProvider {
                 mCurrentState = State.INITIALIZING;
 
 //                int slashPos = CATALOG_URL.lastIndexOf('/');
-                String path = CATALOG_URL;
-                JSONObject jsonObj = fetchJSONFromUrl(CATALOG_URL);
+//                String path = CATALOG_URL;
+//                JSONObject jsonObj = fetchJSONFromUrl(CATALOG_URL);
+                JSONObject jsonObj = new JSONObject(BaseActivity.MusicData);
                 if (jsonObj == null) {
                     return;
                 }
                 JSONArray tracks = jsonObj.getJSONArray(JSON_MUSIC);
                 if (tracks != null) {
                     for (int j = 0; j < tracks.length(); j++) {
-                        MediaMetadata item = buildFromJSON(tracks.getJSONObject(j), path);
+                        MediaMetadata item = buildFromJSON(tracks.getJSONObject(j), null);
                         String musicId = item.getString(MediaMetadata.METADATA_KEY_MEDIA_ID);
                         mMusicListById.put(musicId, new MutableMediaMetadata(musicId, item));
                     }
@@ -272,15 +277,25 @@ public class MusicProvider {
     }
 
     private MediaMetadata buildFromJSON(JSONObject json, String basePath) throws JSONException {
-        if (!json.has(JSON_SOURCE)){
-            JSON_SOURCE = "purchase_url";
-        }
         String title = json.getString(JSON_TITLE);
+        String artist = json.getString(JSON_ARTIST);
         String genre = json.getString(JSON_GENRE);
         String source = json.getString(JSON_SOURCE);
         String iconUrl = json.getString(JSON_IMAGE);
-        int totalTrackCount = json.getInt(JSON_TOTAL_TRACK_COUNT);
-        int duration = json.getInt(JSON_DURATION) * 1000; // ms
+//        int totalTrackCount = json.getInt(JSON_TOTAL_TRACK_COUNT);
+        int totalTrackCount = 100;
+//        int duration = json.getInt(JSON_DURATION) * 1000; // ms
+        int duration = 4000 * 1000; // ms
+
+        try {
+            URL url = new URL(source);
+            URI uri = new URI(url.getProtocol(), url.getUserInfo(), url.getHost(), url.getPort(), url.getPath(), url.getQuery(), url.getRef());
+            url = uri.toURL();
+            source = "http://"+uri.getHost() + url.getPath();
+            Log.i("Source URL", source);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         LogHelper.d(TAG, "Found music track: ", json);
 
@@ -301,8 +316,9 @@ public class MusicProvider {
         // sample for convenience only.
         return new MediaMetadata.Builder()
                 .putString(MediaMetadata.METADATA_KEY_MEDIA_ID, id)
-                .putString(CUSTOM_METADATA_TRACK_SOURCE, source + "?consumer_key=" + consumerKey)
+                .putString(CUSTOM_METADATA_TRACK_SOURCE, source)
                 .putLong(MediaMetadata.METADATA_KEY_DURATION, duration)
+                .putString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST, artist)
                 .putString(MediaMetadata.METADATA_KEY_GENRE, genre)
                 .putString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI, iconUrl)
                 .putString(MediaMetadata.METADATA_KEY_TITLE, title)
