@@ -18,9 +18,7 @@ package com.example.android.uamp.model;
 
 import android.media.MediaMetadata;
 import android.os.AsyncTask;
-import android.util.Log;
 
-import com.example.android.uamp.ui.BaseActivity;
 import com.example.android.uamp.utils.LogHelper;
 
 import org.json.JSONArray;
@@ -30,7 +28,6 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.ArrayList;
@@ -46,47 +43,25 @@ import java.util.concurrent.ConcurrentMap;
  * configuration.
  */
 public class MusicProvider {
-
-    private static final String TAG = LogHelper.makeLogTag(MusicProvider.class);
-    private String consumerKey = "2f5eb10b5123fb1e9527bea35f56137f";
-//    private static final String CATALOG_URL =
-//            "https://api.soundcloud.com/search/sounds.json?consumer_key=2f5eb10b5123fb1e9527bea35f56137f&q=top";
-
-//    String urlVi = soundCloudList.getJSONObject(position).getString("stream_url") + "?consumer_key="
-//            + consumerKey;
-//    soundID = soundCloudList.getJSONObject(position).getString("id");
-//    title = soundCloudList.getJSONObject(position).getString("title");
-//    duration = convertMin(soundCloudList.getJSONObject(position).getInt("duration"));
-//    thumbnail = soundCloudList.getJSONObject(position).getString("artwork_url");
-//    channel = soundCloudList.getJSONObject(position).getJSONObject("user").getString("username");
-//    numView = soundCloudList.getJSONObject(position).getString("playback_count");
-
     public static final String CUSTOM_METADATA_TRACK_SOURCE = "__SOURCE__";
-
-    private static final String JSON_MUSIC = "music";
-    private static final String JSON_TITLE = "title";
-    private static final String JSON_ARTIST = "artist";
-    private static final String JSON_GENRE = "production";
-    private static final String JSON_SOURCE = "mp3";
-    private static final String JSON_IMAGE = "cover";
-//    private static final String JSON_TOTAL_TRACK_COUNT = "playback_count";
+    private static final String TAG = LogHelper.makeLogTag(MusicProvider.class);
+    private static final String SERVER_URL =
+            "http://www.kh-song.com/app/webroot/img/upload.ajax/";
+    private static final String JSON_MUSIC = "files";
+    private static final String JSON_TITLE = "name";
+//    private static final String JSON_ALBUM = "album";
+//    private static final String JSON_ARTIST = "artist";
+//    private static final String JSON_GENRE = "genre";
+    private static final String JSON_SOURCE = "url";
+//    private static final String JSON_IMAGE = "image";
+    private static final String JSON_TRACK_NUMBER = "size";
+//    private static final String JSON_TOTAL_TRACK_COUNT = "totalTrackCount";
 //    private static final String JSON_DURATION = "duration";
-
+    private final ConcurrentMap<String, MutableMediaMetadata> mMusicListById;
+    private final Set<String> mFavoriteTracks;
     // Categorized caches for music track data:
     private ConcurrentMap<String, List<MediaMetadata>> mMusicListByGenre;
-    private final ConcurrentMap<String, MutableMediaMetadata> mMusicListById;
-
-    private final Set<String> mFavoriteTracks;
-
-    enum State {
-        NON_INITIALIZED, INITIALIZING, INITIALIZED
-    }
-
     private volatile State mCurrentState = State.NON_INITIALIZED;
-
-    public interface Callback {
-        void onMusicCatalogReady(boolean success);
-    }
 
     public MusicProvider() {
         mMusicListByGenre = new ConcurrentHashMap<>();
@@ -154,7 +129,6 @@ public class MusicProvider {
         }
         return result;
     }
-
 
     /**
      * Return the MediaMetadata for the given musicID.
@@ -243,99 +217,63 @@ public class MusicProvider {
     }
 
     private synchronized void retrieveMedia() {
-        try {
-            if (mCurrentState == State.NON_INITIALIZED) {
-                mCurrentState = State.INITIALIZING;
-
-//                int slashPos = CATALOG_URL.lastIndexOf('/');
-//                String path = CATALOG_URL;
-//                JSONObject jsonObj = fetchJSONFromUrl(CATALOG_URL);
-                JSONObject jsonObj = new JSONObject(BaseActivity.MusicData);
-                if (jsonObj == null) {
-                    return;
-                }
-                JSONArray tracks = jsonObj.getJSONArray(JSON_MUSIC);
+        if (mCurrentState == State.NON_INITIALIZED) {
+            mCurrentState = State.INITIALIZING;
+           JSONObject json = fetchJSONFromUrl();
+            if (json == null) {
+                return;
+            }
+            try {
+                JSONArray tracks = json.getJSONArray(JSON_MUSIC);
                 if (tracks != null) {
                     for (int j = 0; j < tracks.length(); j++) {
-                        MediaMetadata item = buildFromJSON(tracks.getJSONObject(j), null);
+                        MediaMetadata item = buildFromJSON(tracks.getJSONObject(j));
                         String musicId = item.getString(MediaMetadata.METADATA_KEY_MEDIA_ID);
                         mMusicListById.put(musicId, new MutableMediaMetadata(musicId, item));
                     }
                     buildListsByGenre();
                 }
                 mCurrentState = State.INITIALIZED;
-            }
-        } catch (JSONException e) {
-            LogHelper.e(TAG, e, "Could not retrieve music list");
-        } finally {
-            if (mCurrentState != State.INITIALIZED) {
-                // Something bad happened, so we reset state to NON_INITIALIZED to allow
-                // retries (eg if the network connection is temporary unavailable)
-                mCurrentState = State.NON_INITIALIZED;
+            } catch (JSONException e) {
+                LogHelper.e(TAG, e, "Could not retrieve music list");
+            } finally {
+                if (mCurrentState != State.INITIALIZED) {
+                    mCurrentState = State.NON_INITIALIZED;
+                }
             }
         }
     }
 
-    private MediaMetadata buildFromJSON(JSONObject json, String basePath) throws JSONException {
+    private MediaMetadata buildFromJSON(JSONObject json) throws JSONException {
         String title = json.getString(JSON_TITLE);
-        String artist = json.getString(JSON_ARTIST);
-        String genre = json.getString(JSON_GENRE);
+        String album = "Unkown";//json.getString(JSON_ALBUM);
+        String artist ="Unkown";// json.getString(JSON_ARTIST);
+        String genre = "Unkown";//json.getString(JSON_GENRE);
         String source = json.getString(JSON_SOURCE);
-        String iconUrl = json.getString(JSON_IMAGE);
+        String iconUrl = "http://creativeherald.com/wp-content/uploads/2012/07/music-note-logo-500x625.jpg";//json.getString(JSON_IMAGE);
+        int trackNumber = json.getInt(JSON_TRACK_NUMBER);
 //        int totalTrackCount = json.getInt(JSON_TOTAL_TRACK_COUNT);
-        int totalTrackCount = 100;
 //        int duration = json.getInt(JSON_DURATION) * 1000; // ms
-        int duration = 4000 * 1000; // ms
 
-        try {
-            URL url = new URL(source);
-            URI uri = new URI(url.getProtocol(), url.getUserInfo(), url.getHost(), url.getPort(), url.getPath(), url.getQuery(), url.getRef());
-            url = uri.toURL();
-            source = "http://"+uri.getHost() + url.getPath();
-            Log.i("Source URL", source);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        LogHelper.d(TAG, "Found music track: ", json);
-
-        // Media is stored relative to JSON file
-//        if (!source.startsWith("http")) {
-//            source = basePath + source;
-//        }
-//        if (!iconUrl.startsWith("http")) {
-//            iconUrl = basePath + iconUrl;
-//        }
-        // Since we don't have a unique ID in the server, we fake one using the hashcode of
-        // the music source. In a real world app, this could come from the server.
         String id = String.valueOf(source.hashCode());
-
-        // Adding the music source to the MediaMetadata (and consequently using it in the
-        // mediaSession.setMetadata) is not a good idea for a real world music app, because
-        // the session metadata can be accessed by notification listeners. This is done in this
-        // sample for convenience only.
         return new MediaMetadata.Builder()
                 .putString(MediaMetadata.METADATA_KEY_MEDIA_ID, id)
                 .putString(CUSTOM_METADATA_TRACK_SOURCE, source)
-                .putLong(MediaMetadata.METADATA_KEY_DURATION, duration)
-                .putString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST, artist)
+                .putString(MediaMetadata.METADATA_KEY_ALBUM, album)
+                .putString(MediaMetadata.METADATA_KEY_ARTIST, artist)
+//                .putLong(MediaMetadata.METADATA_KEY_DURATION, duration)
                 .putString(MediaMetadata.METADATA_KEY_GENRE, genre)
                 .putString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI, iconUrl)
                 .putString(MediaMetadata.METADATA_KEY_TITLE, title)
-                .putLong(MediaMetadata.METADATA_KEY_NUM_TRACKS, totalTrackCount)
+                .putLong(MediaMetadata.METADATA_KEY_TRACK_NUMBER, trackNumber)
+//                .putLong(MediaMetadata.METADATA_KEY_NUM_TRACKS, totalTrackCount)
                 .build();
     }
 
-    /**
-     * Download a JSON file from a server, parse the content and return the JSON
-     * object.
-     *
-     * @return result JSONObject containing the parsed representation.
-     */
-    private JSONObject fetchJSONFromUrl(String urlString) {
+    private JSONObject fetchJSONFromUrl() {
         BufferedReader reader = null;
         try {
-            URLConnection urlConnection = new URL(urlString).openConnection();
+            URLConnection urlConnection = new URL(SERVER_URL).openConnection();
             reader = new BufferedReader(new InputStreamReader(
                     urlConnection.getInputStream(), "iso-8859-1"));
             StringBuilder sb = new StringBuilder();
@@ -356,5 +294,13 @@ public class MusicProvider {
                 }
             }
         }
+    }
+
+    enum State {
+        NON_INITIALIZED, INITIALIZING, INITIALIZED
+    }
+
+    public interface Callback {
+        void onMusicCatalogReady(boolean success);
     }
 }

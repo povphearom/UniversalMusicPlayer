@@ -28,7 +28,6 @@ import android.support.annotation.NonNull;
 
 import com.example.android.uamp.MusicService;
 import com.example.android.uamp.R;
-import com.example.android.uamp.model.JSONModel;
 import com.example.android.uamp.utils.LogHelper;
 import com.example.android.uamp.utils.NetworkHelper;
 import com.example.android.uamp.utils.ResourceHelper;
@@ -39,18 +38,12 @@ import com.example.android.uamp.utils.ResourceHelper;
 public abstract class BaseActivity extends ActionBarCastActivity implements MediaBrowserProvider {
 
     private static final String TAG = LogHelper.makeLogTag(BaseActivity.class);
-
-    public static String MusicData = "";
-
     private MediaBrowser mMediaBrowser;
     private PlaybackControlsFragment mControlsFragment;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        MusicData = new JSONModel(this).loadJSONFromAsset();
-
         LogHelper.d(TAG, "Activity onCreate");
 
         // Since our app icon has the same color as colorPrimary, our entry in the Recent Apps

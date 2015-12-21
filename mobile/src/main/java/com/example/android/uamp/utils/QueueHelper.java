@@ -86,15 +86,15 @@ public class QueueHelper {
         }
 
         Iterable<MediaMetadata> result = null;
-        if (params.isAlbumFocus) {
-            result = musicProvider.searchMusicByAlbum(params.album);
-        } else if (params.isGenreFocus) {
-            result = musicProvider.getMusicsByGenre(params.genre);
-        } else if (params.isArtistFocus) {
-            result = musicProvider.searchMusicByArtist(params.artist);
-        } else if (params.isSongFocus) {
-            result = musicProvider.searchMusicBySongTitle(params.song);
-        }
+//        if (params.isAlbumFocus) {
+//            result = musicProvider.searchMusicByAlbum(params.album);
+//        } else if (params.isGenreFocus) {
+//            result = musicProvider.getMusicsByTitles(params.genre);
+//        } else if (params.isArtistFocus) {
+//            result = musicProvider.searchMusicByArtist(params.artist);
+//        } else if (params.isSongFocus) {
+//            result = musicProvider.searchMusicBySongTitle(params.song);
+//        }
 
         // If there was no results using media focus parameter, we do an unstructured query.
         // This is useful when the user is searching for something that looks like an artist
@@ -169,8 +169,8 @@ public class QueueHelper {
     public static List<MediaSession.QueueItem> getRandomQueue(MusicProvider musicProvider) {
         List<MediaMetadata> result = new ArrayList<>();
 
-        for (String genre: musicProvider.getGenres()) {
-            Iterable<MediaMetadata> tracks = musicProvider.getMusicsByGenre(genre);
+        for (String title: musicProvider.getGenres()) {
+            Iterable<MediaMetadata> tracks = musicProvider.getMusicsByGenre(title);
             for (MediaMetadata track: tracks) {
                 if (ThreadLocalRandom.current().nextBoolean()) {
                     result.add(track);
