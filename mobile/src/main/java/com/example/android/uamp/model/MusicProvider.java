@@ -17,7 +17,9 @@
 package com.example.android.uamp.model;
 
 import android.media.MediaMetadata;
+import android.media.MediaPlayer;
 import android.os.AsyncTask;
+import android.util.Log;
 
 import com.example.android.uamp.utils.LogHelper;
 
@@ -227,9 +229,15 @@ public class MusicProvider {
                 JSONArray tracks = json.getJSONArray(JSON_MUSIC);
                 if (tracks != null) {
                     for (int j = 0; j < tracks.length(); j++) {
-                        MediaMetadata item = buildFromJSON(tracks.getJSONObject(j));
-                        String musicId = item.getString(MediaMetadata.METADATA_KEY_MEDIA_ID);
-                        mMusicListById.put(musicId, new MutableMediaMetadata(musicId, item));
+                        JSONObject js = tracks.getJSONObject(j);
+                        String source = js.getString(JSON_SOURCE);
+                        String ext = source.substring(source.lastIndexOf("."),source.length());
+                        Log.i("Extention",ext);
+                        if (ext.equals(".mp3")) {
+                            MediaMetadata item = buildFromJSON(js);
+                            String musicId = item.getString(MediaMetadata.METADATA_KEY_MEDIA_ID);
+                            mMusicListById.put(musicId, new MutableMediaMetadata(musicId, item));
+                        }
                     }
                     buildListsByGenre();
                 }
@@ -245,9 +253,24 @@ public class MusicProvider {
     }
 
     private MediaMetadata buildFromJSON(JSONObject json) throws JSONException {
-        String title = json.getString(JSON_TITLE);
+        MediaPlayer mediaPlayer = new MediaPlayer();
+        String titles[] = json.getString(JSON_TITLE).split("\\.");
+        Log.i("Split",titles.length + " length(s)");
+        String artist = "Unkown";
+        String title = "Unkown";
+        int duration = 400 * 1000;
+        if (titles.length > 2) {
+            title = titles[1];
+        }else if(titles.length == 2){
+            title = titles[0];
+        }else{
+            title=json.getString(JSON_TITLE);
+        }
+        if (title.lastIndexOf("-") > 0){
+            artist = title.substring(title.lastIndexOf("-")+1,title.length()).toUpperCase(Locale.US);
+        }
+
         String album = "Unkown";//json.getString(JSON_ALBUM);
-        String artist ="Unkown";// json.getString(JSON_ARTIST);
         String genre = "Unkown";//json.getString(JSON_GENRE);
         String source = json.getString(JSON_SOURCE);
         String iconUrl = "http://creativeherald.com/wp-content/uploads/2012/07/music-note-logo-500x625.jpg";//json.getString(JSON_IMAGE);
@@ -261,7 +284,7 @@ public class MusicProvider {
                 .putString(CUSTOM_METADATA_TRACK_SOURCE, source)
                 .putString(MediaMetadata.METADATA_KEY_ALBUM, album)
                 .putString(MediaMetadata.METADATA_KEY_ARTIST, artist)
-//                .putLong(MediaMetadata.METADATA_KEY_DURATION, duration)
+                .putLong(MediaMetadata.METADATA_KEY_DURATION, duration)
                 .putString(MediaMetadata.METADATA_KEY_GENRE, genre)
                 .putString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI, iconUrl)
                 .putString(MediaMetadata.METADATA_KEY_TITLE, title)
